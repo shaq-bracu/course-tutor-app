@@ -1,27 +1,56 @@
 const express = require('express');
+const { body } = require('express-validator');
 const { authenticate, authorize } = require('../middleware/auth');
+const userController = require('../controllers/userController');
 
 const router = express.Router();
 
-// Placeholder routes - to be implemented
-router.get('/tutors', (req, res) => {
-  res.json({ message: 'Get tutors endpoint - to be implemented' });
-});
+// Validation rules
+const reportUserValidation = [
+  body('reason')
+    .isIn(['inappropriate_behavior', 'scam', 'harassment', 'fake_profile', 'other'])
+    .withMessage('Invalid report reason'),
+  
+  body('description')
+    .isLength({ min: 10, max: 500 })
+    .withMessage('Description must be between 10 and 500 characters')
+];
 
-router.get('/students', authenticate, authorize('admin'), (req, res) => {
-  res.json({ message: 'Get students endpoint - to be implemented' });
-});
+// Public routes
+router.get('/tutors', userController.getApprovedTutors);
+router.get('/tutors/:tutorId', userController.getTutorById);
 
-router.get('/:id', (req, res) => {
-  res.json({ message: 'Get user by ID endpoint - to be implemented' });
-});
+// Protected routes
+router.use(authenticate);
 
-router.put('/:id/approve', authenticate, authorize('admin'), (req, res) => {
-  res.json({ message: 'Approve tutor endpoint - to be implemented' });
-});
+// Get user by ID (self or admin only)
+router.get('/:userId', userController.getUserById);
 
-router.post('/:id/report', authenticate, (req, res) => {
-  res.json({ message: 'Report user endpoint - to be implemented' });
-});
+// Report user
+router.post(
+  '/:userId/report', 
+  reportUserValidation,
+  userController.reportUser
+);
+
+// Admin only routes
+router.get('/', authenticate, authorize('admin'), userController.getAllUsers);
+router.get('/pending/tutors', authenticate, authorize('admin'), userController.getPendingTutors);
+router.get('/stats/overview', authenticate, authorize('admin'), userController.getUserStats);
+
+router.put(
+  '/:tutorId/approve', 
+  authenticate, 
+  authorize('admin'),
+  body('approved').isBoolean().withMessage('Approved must be a boolean'),
+  userController.approveTutor
+);
+
+router.put(
+  '/:userId/toggle-status', 
+  authenticate, 
+  authorize('admin'),
+  userController.toggleUserStatus
+);
 
 module.exports = router;

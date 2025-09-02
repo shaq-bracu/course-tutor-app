@@ -1,41 +1,109 @@
 const express = require('express');
-const { authenticate } = require('../middleware/auth');
+const { body } = require('express-validator');
+const { authenticate, authorize } = require('../middleware/auth');
+const bookingController = require('../controllers/bookingController');
 
 const router = express.Router();
 
-// All routes require authentication
+// Validation rules
+const createBookingValidation = [
+  body('tutorId')
+    .isMongoId()
+    .withMessage('Valid tutor ID is required'),
+  
+  body('courseId')
+    .isMongoId()
+    .withMessage('Valid course ID is required'),
+  
+  body('sessionDate')
+    .isISO8601()
+    .withMessage('Valid session date is required (YYYY-MM-DD format)'),
+  
+  body('startTime')
+    .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+    .withMessage('Valid start time is required (HH:MM format)'),
+  
+  body('endTime')
+    .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+    .withMessage('Valid end time is required (HH:MM format)'),
+  
+  body('duration')
+    .isInt({ min: 30 })
+    .withMessage('Duration must be at least 30 minutes'),
+  
+  body('paymentMethod')
+    .optional()
+    .isIn(['cash', 'bkash', 'nagad', 'rocket', 'bank_transfer'])
+    .withMessage('Invalid payment method'),
+  
+  body('notes')
+    .optional()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot be more than 500 characters'),
+  
+  body('sessionObjectives')
+    .optional()
+    .isArray()
+    .withMessage('Session objectives must be an array')
+];
+
+const feedbackValidation = [
+  body('rating')
+    .isInt({ min: 1, max: 5 })
+    .withMessage('Rating must be between 1 and 5'),
+  
+  body('comment')
+    .optional()
+    .isLength({ max: 1000 })
+    .withMessage('Comment cannot be more than 1000 characters')
+];
+
+// Public route to check tutor availability
+router.get('/availability/:tutorId', bookingController.getTutorAvailability);
+
+// All other routes require authentication
 router.use(authenticate);
 
-router.get('/', (req, res) => {
-  res.json({ message: 'Get user bookings endpoint - to be implemented' });
-});
+// Get user's bookings (student or tutor)
+router.get('/', bookingController.getUserBookings);
 
-router.get('/upcoming', (req, res) => {
-  res.json({ message: 'Get upcoming bookings endpoint - to be implemented' });
-});
+// Get upcoming bookings
+router.get('/upcoming', bookingController.getUpcomingBookings);
 
-router.post('/', (req, res) => {
-  res.json({ message: 'Create booking endpoint - to be implemented' });
-});
+// Create a booking (students only)
+router.post(
+  '/', 
+  authorize('student'),
+  createBookingValidation,
+  bookingController.createBooking
+);
 
-router.put('/:id', (req, res) => {
-  res.json({ message: 'Update booking endpoint - to be implemented' });
-});
+// Confirm booking (tutors only)
+router.put(
+  '/:bookingId/confirm',
+  authorize('tutor'),
+  bookingController.confirmBooking
+);
 
-router.put('/:id/cancel', (req, res) => {
-  res.json({ message: 'Cancel booking endpoint - to be implemented' });
-});
+// Cancel booking (student or tutor)
+router.put(
+  '/:bookingId/cancel',
+  body('reason').optional().isLength({ max: 500 }).withMessage('Reason cannot be more than 500 characters'),
+  bookingController.cancelBooking
+);
 
-router.put('/:id/reschedule', (req, res) => {
-  res.json({ message: 'Reschedule booking endpoint - to be implemented' });
-});
+// Complete booking (tutors only)
+router.put(
+  '/:bookingId/complete',
+  authorize('tutor'),
+  bookingController.completeBooking
+);
 
-router.put('/:id/complete', (req, res) => {
-  res.json({ message: 'Complete booking endpoint - to be implemented' });
-});
-
-router.post('/:id/feedback', (req, res) => {
-  res.json({ message: 'Add booking feedback endpoint - to be implemented' });
-});
+// Add feedback to booking
+router.post(
+  '/:bookingId/feedback',
+  feedbackValidation,
+  bookingController.addBookingFeedback
+);
 
 module.exports = router;
