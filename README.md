@@ -260,12 +260,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 👥 Team
 
-Developed by [Your Name] - Full Stack Developer
+Developed by [Shakhawat Hossain] - Full Stack Developer
 
 ## 📞 Support
 
 For support and questions:
-- Email: support@coursetutor.com
+- Email: shakhawatalvi@gmail.com
 - GitHub Issues: Create an issue in this repository
 
 ---
